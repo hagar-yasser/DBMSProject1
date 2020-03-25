@@ -33,10 +33,34 @@ public class Table implements Serializable {
         }
         return current;
     }
+    public Page deserialize(String name) throws DBAppException {
+        Page current = null;
+        try {
+            FileInputStream fileIn = new FileInputStream("data/" + name  + ".class");
+            ObjectInputStream in = new ObjectInputStream(fileIn);
+            current = (Page) in.readObject();
+            in.close();
+            fileIn.close();
+        } catch (Exception e) {
+            throw new DBAppException("No file with this name");
+        }
+        return current;
+    }
 
     public void serialize(Page p, String name, int index) throws DBAppException {
         try {
             FileOutputStream fileOut = new FileOutputStream("data/" + name + index + ".class");
+            ObjectOutputStream out = new ObjectOutputStream(fileOut);
+            out.writeObject(p);
+            out.close();
+            fileOut.close();
+        } catch (IOException i) {
+            throw new DBAppException("Can not serialize Page");
+        }
+    }
+    public void serialize(Page p, String name) throws DBAppException {
+        try {
+            FileOutputStream fileOut = new FileOutputStream("data/" + name + ".class");
             ObjectOutputStream out = new ObjectOutputStream(fileOut);
             out.writeObject(p);
             out.close();
@@ -334,6 +358,7 @@ public class Table implements Serializable {
                         DBPolygon PX = new DBPolygon((Polygon) x), PY = new DBPolygon((Polygon) y);
                         return (PX).compareTo(PY);
                 }
+                break;
             }
         } catch (IOException e) {
             throw new DBAppException("can't write to metadata file");
@@ -373,6 +398,7 @@ public class Table implements Serializable {
                         DBPolygon PX = new DBPolygon((Polygon) x), PY = new DBPolygon((Polygon) y);
                         return (PX).compareTo(PY);
                 }
+                break;
             }
         } catch (IOException e) {
             throw new DBAppException("can't write to metadata file");
@@ -381,43 +407,91 @@ public class Table implements Serializable {
     }
 
     public ArrayList<Record> selectFromTable(String ColName, Object value, String operator) throws DBAppException {
+        boolean indexed = ifIndexedBP(ColName);
+        boolean key = ifClusteringKey(ColName);
         ArrayList<Record> ans = new ArrayList<>();
-        for (int i = 0; i < pages; i++) {
-            Page cur = deserialize(Name, i);
-            for (int j = 0; j < cur.Rows.size(); j++) {
-                Object originalValue = cur.Rows.get(i).row.get(ColName);
-                int comparison = CompareInCol(ColName, originalValue, value);
-                switch (operator) {
-                    case "=":
-                        if (comparison == 0)
-                            ans.add(cur.Rows.get(i));
-                        break;
-                    case "!=":
-                        if (comparison != 0)
-                            ans.add(cur.Rows.get(i));
-                        break;
-                    case ">":
-                        if (comparison > 0)
-                            ans.add(cur.Rows.get(i));
-                        break;
-                    case "<":
-                        if (comparison < 0)
-                            ans.add(cur.Rows.get(i));
-                        break;
-                    case ">=":
-                        if (comparison >= 0)
-                            ans.add(cur.Rows.get(i));
-                        break;
-                    case "<=":
-                        if (comparison <= 0)
-                            ans.add(cur.Rows.get(i));
-                        break;
+        if (operator.equals("!=") || !(indexed || key)) {
+            for (int i = 0; i < pages; i++) {
+                Page cur = deserialize(Name, i);
+                for (int j = 0; j < cur.Rows.size(); j++) {
+                    Object originalValue = cur.Rows.get(i).row.get(ColName);
+                    int comparison = CompareInCol(ColName, originalValue, value);
+                    switch (operator) {
+                        case "=":
+                            if (comparison == 0)
+                                ans.add(cur.Rows.get(i));
+                            break;
+                        case "!=":
+                            if (comparison != 0)
+                                ans.add(cur.Rows.get(i));
+                            break;
+                        case ">":
+                            if (comparison > 0)
+                                ans.add(cur.Rows.get(i));
+                            break;
+                        case "<":
+                            if (comparison < 0)
+                                ans.add(cur.Rows.get(i));
+                            break;
+                        case ">=":
+                            if (comparison >= 0)
+                                ans.add(cur.Rows.get(i));
+                            break;
+                        case "<=":
+                            if (comparison <= 0)
+                                ans.add(cur.Rows.get(i));
+                            break;
 
 
+                    }
                 }
+                serialize(cur, Name, i);
             }
-            serialize(cur, Name, i);
+            return ans;
         }
+        if (indexed) {
+            switch (operator) {
+                case "=":
+                    ans=EqualToInIndexed(value,ColName);
+                    break;
+                case ">":
+                    ans=BiggerThanInIndexed(value,ColName);
+                    break;
+                case "<":
+                    ans=LessThanInIndexed(value,ColName);
+                    break;
+                case ">=":
+                    ans=CompareOR(BiggerThanInIndexed(value,ColName),EqualToInIndexed(value,ColName));
+                    break;
+                case "<=":
+                    ans=CompareOR(LessThanInIndexed(value,ColName),EqualToInIndexed(value,ColName));
+                    break;
+
+
+            }
+            return ans;
+        }
+        switch (operator) {
+            case "=":
+                ans=EqualToClustering(value);
+                break;
+            case ">":
+                ans=BiggerThanClustering(value);
+                break;
+            case "<":
+                ans=LessThanClustering(value);
+                break;
+            case ">=":
+                ans=CompareOR(BiggerThanClustering(value),EqualToClustering(value));
+                break;
+            case "<=":
+                ans=CompareOR(LessThanClustering(value),EqualToClustering(value));
+                break;
+
+
+        }
+
+
         return ans;
     }
 
@@ -540,4 +614,255 @@ public class Table implements Serializable {
         }
         return false;
     }
+
+    public ArrayList<Record> LessThanClustering(Object value) throws DBAppException {
+        ArrayList<Record> ans = new ArrayList<>();
+        for (int i = 0; i < pages; i++) {
+            Page cur = deserialize(Name, i);
+            for (int j = 0; j < cur.Rows.size(); j++) {
+                Record r = cur.Rows.get(i);
+                if (Compare(r.row.get(Key), value) >= 0) {
+                    serialize(cur, Name, i);
+                    return ans;
+                }
+                ans.add(r);
+            }
+            serialize(cur, Name, i);
+        }
+        return ans;
+    }
+
+    public ArrayList<Record> BiggerThanClustering(Object value) throws DBAppException {
+        ArrayList<Record> ans = new ArrayList<>();
+        for (int i = pages - 1; i >= 0; i--) {
+            Page cur = deserialize(Name, i);
+            for (int j = cur.Rows.size() - 1; j >= 0; j--) {
+                Record r = cur.Rows.get(i);
+                if (Compare(r.row.get(Key), value) <= 0) {
+                    serialize(cur, Name, i);
+                    return ans;
+                }
+                ans.add(r);
+            }
+            serialize(cur, Name, i);
+        }
+        return ans;
+    }
+
+    public ArrayList<Record> EqualToClustering(Object value) throws DBAppException {
+        ArrayList<Record> ans = new ArrayList<>();
+        int index = FirstEqualInClustering(value);
+        if (index == -1)
+            return ans;
+        for (int i = index; i < pages; i++) {
+            Page cur = deserialize(Name, i);
+            for (int j = 0; j < cur.Rows.size(); j++) {
+                Record r = cur.Rows.get(i);
+                if (Compare(r.row.get(Key), value) > 0) {
+                    serialize(cur, Name, i);
+                    return ans;
+                }
+                ans.add(r);
+            }
+            serialize(cur, Name, i);
+        }
+
+        return ans;
+    }
+
+    public int FirstEqualInClustering(Object value) throws DBAppException {
+        int lo = 0;
+        int hi = pages - 1;
+        int mid = (lo + hi) / 2;
+        int ans = -1;
+        Page current;
+        while (lo <= hi) {
+            mid = (lo + hi) / 2;
+            current = deserialize(Name, mid);
+            if (Compare(current.Rows.get(current.Rows.size() - 1).row.get(Key), value) < 0) {//kda we will have many pages deserialised rokaya
+                lo = mid + 1;
+                continue;
+            }
+            if (Compare(current.Rows.get(0).row.get(Key), value) > 0) {
+                hi = mid - 1;
+            } else {
+                ans = mid;
+                hi = mid - 1;
+            }
+            serialize(current, Name, mid);
+
+        }
+        return ans;
+    }
+
+    public ArrayList<Record> LessThanInIndexed(Object Value,String ColName) throws DBAppException {
+        ArrayList<Record> ans = new ArrayList<>();
+        BPTree bpTree=null;
+        for (int i = 0; i < BPTrees.size(); i++) {
+            if(BPTrees.get(i).ColName.equals(ColName)){
+                bpTree=BPTrees.get(i);
+                break;
+            }
+        }
+        ArrayList<Ref>ansRef=new ArrayList<>();
+        BufferedReader br;
+        String s = "";
+        try {
+            br = new BufferedReader(new FileReader("data/metadata.csv"));
+            s = br.readLine();
+        } catch (FileNotFoundException e) {
+            throw new DBAppException("can not find metadata file");
+        } catch (IOException IO) {
+            throw new DBAppException("can not write to metadata file");
+        }
+        try {
+            while (br.ready()) {
+                s = br.readLine();
+                String[] st = s.split(", ");
+                if (!st[0].equals(Name) || !st[1].equals(ColName)) continue;
+                String value = st[2];
+                switch (value) {
+                    case "java.lang.Integer":
+                        ansRef=bpTree.searchMin((Integer)Value);
+                        break;
+                    case "java.lang.String":
+                        ansRef=bpTree.searchMin((String)Value);
+                        break;
+                    case "java.lang.Double":
+                        ansRef=bpTree.searchMin((Double)Value);
+                        break;
+                    case "java.lang.Boolean":
+                        ansRef=bpTree.searchMin((Boolean)Value);
+                        break;
+                    case "java.util.Date":
+                        ansRef=bpTree.searchMin((Date)Value);
+                        break;
+
+                }
+                break;
+            }
+        } catch (IOException e) {
+            throw new DBAppException("can't write to metadata file");
+        }
+        for (int i = 0; i <ansRef.size() ; i++) {
+           Page now=deserialize(ansRef.get(i).getPage());
+           ans.add(now.Rows.get(ansRef.get(i).getIndexInPage()));
+
+        }
+        return ans;
+    }
+    public ArrayList<Record> BiggerThanInIndexed(Object Value,String ColName) throws DBAppException {
+        ArrayList<Record> ans = new ArrayList<>();
+        BPTree bpTree=null;
+        for (int i = 0; i < BPTrees.size(); i++) {
+            if(BPTrees.get(i).ColName.equals(ColName)){
+                bpTree=BPTrees.get(i);
+                break;
+            }
+        }
+        ArrayList<Ref>ansRef=new ArrayList<>();
+        BufferedReader br;
+        String s = "";
+        try {
+            br = new BufferedReader(new FileReader("data/metadata.csv"));
+            s = br.readLine();
+        } catch (FileNotFoundException e) {
+            throw new DBAppException("can not find metadata file");
+        } catch (IOException IO) {
+            throw new DBAppException("can not write to metadata file");
+        }
+        try {
+            while (br.ready()) {
+                s = br.readLine();
+                String[] st = s.split(", ");
+                if (!st[0].equals(Name) || !st[1].equals(ColName)) continue;
+                String value = st[2];
+                switch (value) {
+                    case "java.lang.Integer":
+                        ansRef=bpTree.searchMax((Integer)Value);
+                        break;
+                    case "java.lang.String":
+                        ansRef=bpTree.searchMax((String)Value);
+                        break;
+                    case "java.lang.Double":
+                        ansRef=bpTree.searchMax((Double)Value);
+                        break;
+                    case "java.lang.Boolean":
+                        ansRef=bpTree.searchMax((Boolean)Value);
+                        break;
+                    case "java.util.Date":
+                        ansRef=bpTree.searchMax((Date)Value);
+                        break;
+
+                }
+                break;
+            }
+        } catch (IOException e) {
+            throw new DBAppException("can't write to metadata file");
+        }
+        for (int i = 0; i <ansRef.size() ; i++) {
+            Page now=deserialize(ansRef.get(i).getPage());
+            ans.add(now.Rows.get(ansRef.get(i).getIndexInPage()));
+
+        }
+        return ans;
+    }
+    public ArrayList<Record> EqualToInIndexed(Object Value,String ColName) throws DBAppException {
+        ArrayList<Record> ans = new ArrayList<>();
+        BPTree bpTree=null;
+        for (int i = 0; i < BPTrees.size(); i++) {
+            if(BPTrees.get(i).ColName.equals(ColName)){
+                bpTree=BPTrees.get(i);
+                break;
+            }
+        }
+        ArrayList<Ref>ansRef=new ArrayList<>();
+        BufferedReader br;
+        String s = "";
+        try {
+            br = new BufferedReader(new FileReader("data/metadata.csv"));
+            s = br.readLine();
+        } catch (FileNotFoundException e) {
+            throw new DBAppException("can not find metadata file");
+        } catch (IOException IO) {
+            throw new DBAppException("can not write to metadata file");
+        }
+        try {
+            while (br.ready()) {
+                s = br.readLine();
+                String[] st = s.split(", ");
+                if (!st[0].equals(Name) || !st[1].equals(ColName)) continue;
+                String value = st[2];
+                switch (value) {
+                    case "java.lang.Integer":
+                        ansRef=bpTree.search((Integer)Value);
+                        break;
+                    case "java.lang.String":
+                        ansRef=bpTree.search((String)Value);
+                        break;
+                    case "java.lang.Double":
+                        ansRef=bpTree.search((Double)Value);
+                        break;
+                    case "java.lang.Boolean":
+                        ansRef=bpTree.search((Boolean)Value);
+                        break;
+                    case "java.util.Date":
+                        ansRef=bpTree.search((Date)Value);
+                        break;
+
+                }
+                break;
+            }
+        } catch (IOException e) {
+            throw new DBAppException("can't write to metadata file");
+        }
+        for (int i = 0; i <ansRef.size() ; i++) {
+            Page now=deserialize(ansRef.get(i).getPage());
+            ans.add(now.Rows.get(ansRef.get(i).getIndexInPage()));
+
+        }
+        return ans;
+    }
+
+
 }

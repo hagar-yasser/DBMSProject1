@@ -126,12 +126,7 @@ public class DBApp {
             out.println("Table Name, Column Name, Column Type, Key, Indexed");
             out.flush();
         }
-        try {
-            FileInputStream fileIn = new FileInputStream("data/BPTree.class");
-        } catch (FileNotFoundException e) {
-            bpTrees = new Vector<>();
-            serializeBPTree();
-        }
+
 
 
     }
@@ -579,9 +574,8 @@ public class DBApp {
                 if (type.equals(""))
                     throw new DBAppException("no such column");
                 Table t=tables.get(i);
-                BPTree newTree=t.createBTreeIndex(strColName, type);
-                bpTrees.add(newTree);
-                serializeBPTree();
+                t.createBTreeIndex(strColName, type);
+
                 serializeTable();
                 break;
             }
