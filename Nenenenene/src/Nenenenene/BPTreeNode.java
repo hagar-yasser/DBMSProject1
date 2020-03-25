@@ -1,11 +1,6 @@
 package Nenenenene;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.util.ArrayList;
 
 public abstract class BPTreeNode<T extends Comparable<T>> implements Serializable {
@@ -149,8 +144,12 @@ public abstract class BPTreeNode<T extends Comparable<T>> implements Serializabl
             current = (BPTreeNode<T>) in.readObject();
             in.close();
             fileIn.close();
-        } catch (Exception e) {
+        } catch (FileNotFoundException e) {
             throw new DBAppException("No Node file with this name");
+        } catch (IOException e) {
+            throw new DBAppException("input has problem");
+        } catch (ClassNotFoundException e) {
+            throw new DBAppException("classnotfound");
         }
         return current;
     }

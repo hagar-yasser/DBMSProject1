@@ -78,7 +78,8 @@ public class BPTreeInnerNode<T extends Comparable<T>> extends BPTreeNode<T> impl
      */
     public PushUp<T> insert(T key, Ref recordReference, BPTreeInnerNode<T> parent, int ptr) throws DBAppException {
         int index = findIndex(key);
-        BPTreeInnerNode<T> child = (BPTreeInnerNode<T>) deserializeNode(children[index]);
+        //BPTreeInnerNode<T> child = (BPTreeInnerNode<T>) deserializeNode(children[index]);
+        BPTreeNode<T> child =  deserializeNode(children[index]);
         PushUp<T> pushUp = child.insert(key, recordReference, this, index);
         serializeNode(child);
         if (pushUp == null)

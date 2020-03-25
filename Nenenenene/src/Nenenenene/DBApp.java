@@ -26,30 +26,60 @@ public class DBApp {
         //out.print("");
         DBApp d = new DBApp();
         d.init();
-//        Hashtable<String, String> htblcolnametype = new Hashtable<String, String>();
-//        htblcolnametype.put("ID", "java.lang.Integer");
-//        htblcolnametype.put("Name", "java.lang.String");
-//        htblcolnametype.put("Age", "java.lang.Integer");
-//        d.createTable("Humans", "ID", htblcolnametype);
-//        Hashtable<String, Object> inputH = new Hashtable<String, Object>();
-//        inputH.put("ID", 5);
-//        inputH.put("Name", "Kevin");
-//        inputH.put("Age", 5);
-//        d.insertIntoTable("Humans", inputH);
-//        d.insertIntoTable("Humans", inputH);
-//        char c = 'a';
-//        for (int i = 0; i < 500; i++) {
-//			inputH = new Hashtable<String, Object>();
-//			inputH.put("ID", i);
-//			c++;
-//			StringBuilder sb = new StringBuilder();
-//			sb.append(c);
-//			sb.append("a");
-//			sb.append(i);
-//			inputH.put("Name", sb.toString());
-//	        inputH.put("Age", i%33);
-//	        d.insertIntoTable("Humans", inputH);
-////		}
+        Hashtable<String, String> htblcolnametype = new Hashtable<String, String>();
+        htblcolnametype.put("ID", "java.lang.Integer");
+        htblcolnametype.put("Name", "java.lang.String");
+        htblcolnametype.put("Age", "java.lang.Integer");
+        d.createTable("Humans", "ID", htblcolnametype);
+        Hashtable<String, Object> inputH = new Hashtable<String, Object>();
+        inputH.put("ID", 5);
+        inputH.put("Name", "Kevin");
+        inputH.put("Age", 5);
+        d.insertIntoTable("Humans", inputH);
+        d.insertIntoTable("Humans", inputH);
+        inputH = new Hashtable<String, Object>();
+        inputH.put("ID", 5);
+        inputH.put("Name", "Kevin");
+        inputH.put("Age", 3);
+        d.insertIntoTable("Humans", inputH);
+        d.insertIntoTable("Humans", inputH);
+
+        char c = 'a';
+        for (int i = 0; i < 500; i++) {
+            inputH = new Hashtable<String, Object>();
+            inputH.put("ID", i);
+            c++;
+            StringBuilder sb = new StringBuilder();
+            sb.append(c);
+            sb.append("a");
+            sb.append(i);
+            inputH.put("Name", sb.toString());
+            inputH.put("Age", i % 33);
+            d.insertIntoTable("Humans", inputH);
+        }
+        //d.createBTreeIndex("Humans", "Name");
+        SQLTerm[] arrSQLTerms;
+        arrSQLTerms = new SQLTerm[2];
+        arrSQLTerms[0]=new SQLTerm();
+        arrSQLTerms[1]=new SQLTerm();
+        arrSQLTerms[0].strTableName = "Humans";
+        arrSQLTerms[0].strColumnName = "Name";
+        arrSQLTerms[0].strOperator = "=";
+        arrSQLTerms[0].objValue = "Kevin";
+        arrSQLTerms[1].strTableName = "Humans";
+        arrSQLTerms[1].strColumnName = "Age";
+        arrSQLTerms[1].strOperator = "<";
+        arrSQLTerms[1].objValue = new Integer(10);
+        String[] strarrOperators = new String[1];
+        strarrOperators[0] = "AND";
+// select * from Student where name = “John Noor” or gpa = 1.5;
+//        ArrayList<Hashtable<String,Object>> resultSet = d.selectFromTable(arrSQLTerms, strarrOperators);
+//
+//        for (int i = 0; i <resultSet.size() ; i++)
+//
+//
+//            System.out.println(resultSet.get(i));
+        // Iterator<Hashtable<String,Object>>res=d.selectFromTable();
 //        Hashtable<String, Object> inputH = new Hashtable<String, Object>();
 ////        inputH.clear();
 //        inputH.put("Age", 14);
@@ -99,19 +129,19 @@ public class DBApp {
 //        d.printPage("Humans", 14);
 //        System.out.println("new page");
 //        d.printPage("Humans", 15);
-        Hashtable<String, Object> inputH = new Hashtable<String, Object>();
-        inputH.put("ID", 205);
-        d.deleteFromTable("Humans", inputH);
-        Page p = d.deserialize("Humans", 0);
-
-        System.err.println(p.Rows.size());
-        d.serialize(p, "Humans", 0);
-        p = d.deserialize("Humans", 1);
-        System.err.println(p.Rows.size());
-        d.serialize(p, "Humans", 1);
-        p = d.deserialize("Humans", 2);
-        System.err.println(p.Rows.size());
-        d.serialize(p, "Humans", 2);
+//        Hashtable<String, Object> inputH = new Hashtable<String, Object>();
+//        inputH.put("ID", 205);
+//        d.deleteFromTable("Humans", inputH);
+//        Page p = d.deserialize("Humans", 0);
+//
+//        System.err.println(p.Rows.size());
+//        d.serialize(p, "Humans", 0);
+//        p = d.deserialize("Humans", 1);
+//        System.err.println(p.Rows.size());
+//        d.serialize(p, "Humans", 1);
+//        p = d.deserialize("Humans", 2);
+//        System.err.println(p.Rows.size());
+//        d.serialize(p, "Humans", 2);
     }
 
     public void init() throws DBAppException {
@@ -126,7 +156,6 @@ public class DBApp {
             out.println("Table Name, Column Name, Column Type, Key, Indexed");
             out.flush();
         }
-
 
 
     }
@@ -499,7 +528,7 @@ public class DBApp {
         return null;
     }
 
-    public Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException {
+    public  Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException {
         ArrayList<Record> intermediateResult;
         Table queried = TableExists(arrSQLTerms[0].strTableName);
         intermediateResult = queried.selectFromTable(arrSQLTerms[0].strColumnName, arrSQLTerms[0].objValue, arrSQLTerms[0].strOperator);
@@ -515,7 +544,11 @@ public class DBApp {
                 else intermediateResult = queried.CompareXOR(intermediateResult, currentResult);
             }
         }
-        return intermediateResult.iterator();
+        ArrayList<Hashtable<String, Object>> intermediateResult2 = new ArrayList<>();
+        for (int i = 0; i < intermediateResult.size(); i++) {
+            intermediateResult2.add(intermediateResult.get(i).row);
+        }
+        return intermediateResult2.iterator();
 
 
     }
@@ -561,7 +594,7 @@ public class DBApp {
                         s = br.readLine();
                         String[] st = s.split(", ");
                         if (!st[0].equals(strTableName) || !st[1].equals(strColName)) continue;
-                        if(st[4].equals("true"))
+                        if (st[4].equals("true"))
                             throw new DBAppException("column already indexed");
                         type = st[2];
                         break;
@@ -573,7 +606,7 @@ public class DBApp {
 
                 if (type.equals(""))
                     throw new DBAppException("no such column");
-                Table t=tables.get(i);
+                Table t = tables.get(i);
                 t.createBTreeIndex(strColName, type);
 
                 serializeTable();

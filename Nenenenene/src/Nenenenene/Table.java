@@ -18,6 +18,8 @@ public class Table implements Serializable {
         pages = 0;
         Key = key;
         Name = name;
+        PagesNames=new ArrayList<>();
+        BPTrees=new ArrayList<>();
     }
 
     public Page deserialize(String name, int index) throws DBAppException {
@@ -387,7 +389,7 @@ public class Table implements Serializable {
                     case "java.lang.Integer":
                         return ((Integer) x).compareTo((Integer) y);
                     case "java.lang.String":
-                        return (x.toString()).compareTo(y.toString());
+                        return ((String)x).compareTo((String)y);
                     case "java.lang.Double":
                         return ((Double) x).compareTo((Double) y);
                     case "java.lang.Boolean":
@@ -414,32 +416,32 @@ public class Table implements Serializable {
             for (int i = 0; i < pages; i++) {
                 Page cur = deserialize(Name, i);
                 for (int j = 0; j < cur.Rows.size(); j++) {
-                    Object originalValue = cur.Rows.get(i).row.get(ColName);
+                    Object originalValue = cur.Rows.get(j).row.get(ColName);
                     int comparison = CompareInCol(ColName, originalValue, value);
                     switch (operator) {
                         case "=":
                             if (comparison == 0)
-                                ans.add(cur.Rows.get(i));
+                                ans.add(cur.Rows.get(j));
                             break;
                         case "!=":
                             if (comparison != 0)
-                                ans.add(cur.Rows.get(i));
+                                ans.add(cur.Rows.get(j));
                             break;
                         case ">":
                             if (comparison > 0)
-                                ans.add(cur.Rows.get(i));
+                                ans.add(cur.Rows.get(j));
                             break;
                         case "<":
                             if (comparison < 0)
-                                ans.add(cur.Rows.get(i));
+                                ans.add(cur.Rows.get(j));
                             break;
                         case ">=":
                             if (comparison >= 0)
-                                ans.add(cur.Rows.get(i));
+                                ans.add(cur.Rows.get(j));
                             break;
                         case "<=":
                             if (comparison <= 0)
-                                ans.add(cur.Rows.get(i));
+                                ans.add(cur.Rows.get(j));
                             break;
 
 

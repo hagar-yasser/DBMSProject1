@@ -215,7 +215,8 @@ public class BPTreeLeafNode<T extends Comparable<T>> extends BPTreeNode<T> imple
 
         //set next pointers
         newNode.setNext(this.getNext());
-        newNode.getNext().setBefore(newNode);
+        if(newNode.getNext()!=null)
+            newNode.getNext().setBefore(newNode);
         this.setNext(newNode);
         newNode.setBefore(this);
 
@@ -398,6 +399,7 @@ public class BPTreeLeafNode<T extends Comparable<T>> extends BPTreeNode<T> imple
             this.insertAt(numberOfKeys, foreignNode.getKey(i), foreignNode.getRecord(i));
 
         this.setNext(foreignNode.getNext());
+        if(this.getNext()!=null)
         this.getNext().setBefore(this);
     }
 
