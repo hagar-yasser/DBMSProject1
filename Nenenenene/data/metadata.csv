@@ -1,0 +1,5 @@
+Table Name, Column Name, Column Type, Key, Indexed
+Humans, TouchDate, java.lang.String, false, false
+Humans, Name, java.lang.String, false, true
+Humans, ID, java.lang.Integer, true, false
+Humans, Age, java.lang.Integer, false, false
